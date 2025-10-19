@@ -1,0 +1,5 @@
+Flask==2.3.3
+pymysql==1.1.0
+flask-cors==3.0.10
+reportlab==4.4.4
+cryptography==41.0.4
