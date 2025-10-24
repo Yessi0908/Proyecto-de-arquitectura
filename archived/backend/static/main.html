@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌿 Invernadero Automatizado</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #d7f0d1; font-family: 'Poppins', sans-serif; }
+    .card { border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .icon { font-size: 2rem; margin-right: 10px; }
+    .alerta { font-weight: bold; }
+    .status-ok { color: #198754; }
+    .status-warning { color: #fd7e14; }
+    .status-error { color: #dc3545; }
+  </style>
+</head>
+<body class="p-4">
+  <div class="container">
+    <h1 class="text-center mb-4">🌿 Panel de Control del Invernadero</h1>
+    
+    <!-- Status de conexión -->
+    <div class="alert alert-info text-center" id="connectionStatus">
+      🔄 Conectando con el servidor...
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="card p-3 bg-light">
+          <h5><span class="icon">🌡️</span>Ambiente</h5>
+          <p>Temperatura: <strong id="temp" class="status-error">--°C</strong></p>
+          <p>Humedad: <strong id="hum" class="status-error">--%</strong></p>
+          <p>Estado bomba: <strong id="bomba" class="status-error">--</strong></p>
+          <small class="text-muted">Última actualización: <span id="ultimaActualizacion">--</span></small>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card p-3 bg-light">
+          <h5><span class="icon">📊</span>Estadísticas</h5>
+          <p>Registros totales: <strong id="totalRegistros">0</strong></p>
+          <p>Último registro: <strong id="ultimoRegistro">--</strong></p>
+          <p>Servidor: <strong>Puerto 8000</strong></p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card p-3 bg-light">
+          <h5><span class="icon">🔧</span>Controles</h5>
+          <button class="btn btn-primary btn-sm w-100 mb-2" onclick="actualizarDatos()">🔄 Actualizar</button>
+          <button class="btn btn-success btn-sm w-100 mb-2" onclick="simularDatos()">🎲 Simular Datos</button>
+          <button class="btn btn-info btn-sm w-100" onclick="window.open('/debug.html', '_blank')">🔧 Debug</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>📈 Gráfico de Temperatura y Humedad</h5>
+      <canvas id="graficoAmbiente" height="100"></canvas>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>📋 Historial Reciente</h5>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-success">
+            <tr>
+              <th>Fecha/Hora</th>
+              <th>Temperatura</th>
+              <th>Humedad</th>
+              <th>Estado Bomba</th>
+              <th>Alerta</th>
+            </tr>
+          </thead>
+          <tbody id="tablaHistorial">
+            <tr><td colspan="5" class="text-center">Cargando datos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Log de actividad -->
+    <div class="card mt-4 p-4">
+      <h5>📝 Log de Actividad</h5>
+      <div id="activityLog" style="height: 200px; overflow-y: scroll; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.9em;">
+        Iniciando sistema...\n
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    const API_BASE = 'http://localhost:8000/api';
+    let grafico = null;
+    let intervalId = null;
+
+    // Función para log de actividad
+    function log(message, type = 'info') {
+      const logElement = document.getElementById('activityLog');
+      const timestamp = new Date().toLocaleTimeString();
+      const colors = {
+        'info': '#0d6efd',
+        'success': '#198754', 
+        'warning': '#fd7e14',
+        'error': '#dc3545'
+      };
+      
+      logElement.innerHTML += `<span style="color: ${colors[type] || colors.info}">[${timestamp}] ${message}</span>\n`;
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    // Función para actualizar el estado de conexión
+    function updateConnectionStatus(connected, message = '') {
+      const statusElement = document.getElementById('connectionStatus');
+      if (connected) {
+        statusElement.className = 'alert alert-success text-center';
+        statusElement.innerHTML = '✅ Conectado - ' + (message || 'Sistema funcionando correctamente');
+      } else {
+        statusElement.className = 'alert alert-danger text-center';
+        statusElement.innerHTML = '❌ Error de conexión - ' + (message || 'No se puede conectar al servidor');
+      }
+    }
+
+    // Función para obtener datos del ambiente
+    async function obtenerDatosAmbiente() {
+      try {
+        log('Obteniendo datos de ambiente...');
+        const response = await fetch(`${API_BASE}/ambiente?limit=10`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const datos = await response.json();
+        log(`✅ ${datos.length} registros obtenidos`, 'success');
+        
+        // Actualizar tabla
+        actualizarTablaHistorial(datos);
+        
+        // Actualizar gráfico
+        actualizarGrafico(datos);
+        
+        // Actualizar estadísticas
+        document.getElementById('totalRegistros').textContent = datos.length;
+        document.getElementById('ultimoRegistro').textContent = 
+          datos.length > 0 ? new Date(datos[0].fecha).toLocaleString() : '--';
+        
+        return datos;
+        
+      } catch (error) {
+        log(`❌ Error obteniendo ambiente: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    // Función para obtener el estado actual
+    async function obtenerEstadoActual() {
+      try {
+        log('Obteniendo estado actual...');
+        const response = await fetch(`${API_BASE}/estado/actual`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.ambiente) {
+          const amb = data.ambiente;
+          
+          // Actualizar datos principales
+          document.getElementById('temp').textContent = `${amb.temperatura}°C`;
+          document.getElementById('temp').className = 'status-ok';
+          
+          document.getElementById('hum').textContent = `${amb.humedad}%`;
+          document.getElementById('hum').className = 'status-ok';
+          
+          document.getElementById('bomba').textContent = amb.estado_bomba || 'Desconocido';
+          document.getElementById('bomba').className = 
+            amb.estado_bomba === 'Encendida' ? 'status-warning' : 'status-ok';
+          
+          document.getElementById('ultimaActualizacion').textContent = 
+            new Date(amb.fecha).toLocaleString();
+          
+          log(`🌡️ Temp: ${amb.temperatura}°C, Hum: ${amb.humedad}%, Bomba: ${amb.estado_bomba}`, 'success');
+          
+          updateConnectionStatus(true, 'Datos actualizados correctamente');
+        } else {
+          log('⚠️ No hay datos de ambiente disponibles', 'warning');
+        }
+        
+        return data;
+        
+      } catch (error) {
+        log(`❌ Error obteniendo estado: ${error.message}`, 'error');
+        updateConnectionStatus(false, error.message);
+        throw error;
+      }
+    }
+
+    // Función para actualizar la tabla de historial
+    function actualizarTablaHistorial(datos) {
+      const tbody = document.getElementById('tablaHistorial');
+      
+      if (datos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay datos disponibles</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = datos.map(registro => `
+        <tr>
+          <td>${new Date(registro.fecha).toLocaleString()}</td>
+          <td><span class="badge bg-${registro.temperatura > 28 ? 'danger' : registro.temperatura < 20 ? 'info' : 'success'}">${registro.temperatura}°C</span></td>
+          <td><span class="badge bg-${registro.humedad > 80 ? 'warning' : registro.humedad < 40 ? 'info' : 'success'}">${registro.humedad}%</span></td>
+          <td><span class="badge bg-${registro.estado_bomba === 'Encendida' ? 'warning' : 'success'}">${registro.estado_bomba}</span></td>
+          <td><span class="badge bg-${registro.alerta === 'Normal' ? 'success' : registro.alerta === 'Medio' ? 'warning' : 'danger'}">${registro.alerta}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Función para actualizar el gráfico
+    function actualizarGrafico(datos) {
+      const ctx = document.getElementById('graficoAmbiente').getContext('2d');
+      
+      if (grafico) {
+        grafico.destroy();
+      }
+      
+      const labels = datos.slice().reverse().map(d => new Date(d.fecha).toLocaleTimeString());
+      const tempData = datos.slice().reverse().map(d => d.temperatura);
+      const humData = datos.slice().reverse().map(d => d.humedad);
+      
+      grafico = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Temperatura (°C)',
+              data: tempData,
+              borderColor: 'rgb(255, 99, 132)',
+              backgroundColor: 'rgba(255, 99, 132, 0.1)',
+              tension: 0.4
+            },
+            {
+              label: 'Humedad (%)',
+              data: humData,
+              borderColor: 'rgb(54, 162, 235)',
+              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+      
+      log('📈 Gráfico actualizado', 'success');
+    }
+
+    // Función principal para actualizar todos los datos
+    async function actualizarDatos() {
+      try {
+        log('🔄 Iniciando actualización completa...');
+        
+        // Verificar salud del servidor
+        const healthResponse = await fetch(`${API_BASE}/health`);
+        if (!healthResponse.ok) {
+          throw new Error('Servidor no responde');
+        }
+        
+        // Obtener datos
+        await Promise.all([
+          obtenerEstadoActual(),
+          obtenerDatosAmbiente()
+        ]);
+        
+        log('✅ Actualización completa exitosa', 'success');
+        
+      } catch (error) {
+        log(`❌ Error en actualización: ${error.message}`, 'error');
+        updateConnectionStatus(false, error.message);
+      }
+    }
+
+    // Función para simular nuevos datos
+    async function simularDatos() {
+      try {
+        log('🎲 Simulando nuevos datos...');
+        
+        const response = await fetch(`${API_BASE}/simular_datos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const resultado = await response.json();
+        const nuevo = resultado.nuevo_registro;
+        
+        log(`🆕 Datos simulados: ${nuevo.temperatura}°C, ${nuevo.humedad}%`, 'success');
+        
+        // Actualizar datos después de un breve delay
+        setTimeout(actualizarDatos, 1000);
+        
+      } catch (error) {
+        log(`❌ Error simulando datos: ${error.message}`, 'error');
+      }
+    }
+
+    // Inicialización cuando se carga la página
+    window.addEventListener('load', function() {
+      log('🚀 Iniciando Panel de Control del Invernadero', 'info');
+      
+      // Primera actualización
+      actualizarDatos();
+      
+      // Configurar actualización automática cada 30 segundos
+      intervalId = setInterval(actualizarDatos, 30000);
+      
+      log('⏰ Auto-actualización configurada (30s)', 'info');
+    });
+
+    // Limpiar al salir
+    window.addEventListener('beforeunload', function() {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (grafico) {
+        grafico.destroy();
+      }
+    });
+  </script>
+</body>
+</html>
