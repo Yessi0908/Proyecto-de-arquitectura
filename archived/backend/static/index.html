@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>🌿 Invernadero Automatizado</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #d7f0d1; font-family: 'Poppins', sans-serif; }
+    .card { border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .icon { font-size: 2rem; margin-right: 10px; }
+    .alerta { font-weight: bold; }
+  </style>
+</head>
+<body class="p-4">
+  <div class="container">
+    <!-- Alerta de Humo -->
+    <div id="humoAlert" class="alert d-none" role="alert" style="border-radius: 12px;">
+      <strong>🚨 Alerta de Humo:</strong> <span id="humoAlertText">Se ha detectado humo</span>
+      <button type="button" class="btn-close float-end" aria-label="Close" onclick="document.getElementById('humoAlert').classList.add('d-none')"></button>
+    </div>
+    <h1 class="text-center mb-4">🌿 Panel de Control del Invernadero</h1>
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="card p-3 bg-light">
+          <h5><span class="icon">🌡️</span>Ambiente</h5>
+          <p>Temperatura: <strong id="temp">28°C</strong></p>
+          <p>Humedad: <strong id="hum">52%</strong></p>
+          <p>Estado bomba: <span class="alerta text-success">Apagada</span></p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card p-3 bg-light">
+          <h5><span class="icon">🚨</span>Seguridad</h5>
+          <p>Movimiento: <span id="mov">No detectado</span></p>
+          <p>Humo: <span id="humo" class="text-success">Normal</span></p>
+          <p>Alerta: <span id="alerta" class="text-success">🟢 Normal</span></p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card p-3 bg-light">
+          <h5><span class="icon">🪪</span>Control de Acceso</h5>
+          <p>Último acceso: <span id="horaAcceso">10:20 AM</span></p>
+          <p>Usuario: <strong id="usuario">Juan Pérez</strong></p>
+          <p>Acceso: <span class="text-success">Autorizado ✅</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>📈 Registro de Temperatura y Humedad</h5>
+      <canvas id="graficoAmbiente" height="100"></canvas>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>🧾 Historial de eventos</h5>
+      <table class="table table-hover">
+        <thead class="table-success">
+          <tr>
+            <th>Fecha/Hora</th>
+            <th>Evento</th>
+            <th>Descripción</th>
+            <th>Nivel</th>
+          </tr>
+        </thead>
+        <tbody id="tablaEventos">
+          <tr><td>2025-10-19 10:15</td><td>Movimiento</td><td>Zona norte</td><td>Medio</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>🔧 Controles y Filtros</h5>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Desde:</label>
+          <input type="datetime-local" id="fechaDesde" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Hasta:</label>
+          <input type="datetime-local" id="fechaHasta" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Tipo de Evento:</label>
+          <select id="tipoEvento" class="form-select">
+            <option value="">Todos</option>
+            <option value="Ambiente">Ambiente</option>
+            <option value="Movimiento">Movimiento</option>
+            <option value="Humo">Humo</option>
+            <option value="Acceso">Acceso</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Nivel de Alerta:</label>
+          <select id="nivelAlerta" class="form-select">
+            <option value="">Todos</option>
+            <option value="Normal">Normal</option>
+            <option value="Medio">Medio</option>
+            <option value="Alto">Alto</option>
+            <option value="Crítico">Crítico</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4 flex-wrap">
+      <button id="btnRefresh" class="btn btn-success">🔄 Refrescar datos</button>
+      <button id="btnFiltrar" class="btn btn-info">🔍 Aplicar Filtros</button>
+      <a href="/static/estadisticas.html" class="btn btn-warning">📊 Estadísticas</a>
+      <a id="btnPdfPro" class="btn btn-primary fw-bold" href="/api/report/demo" target="_blank" 
+         title="Descargar PDF"
+         style="box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3); text-decoration: none; background: linear-gradient(45deg, #0d6efd, #6610f2);">
+        📄 Descargar PDF
+      </a>
+      <button id="btnConfig" class="btn btn-outline-secondary">⚙️ Configuración</button>
+      <button id="btnAutoUpdate" class="btn btn-secondary">⏸️ Pausar Auto-actualización</button>
+    </div>
+  <!-- Modal Configuración -->
+  <div class="modal" tabindex="-1" id="configModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Configuración de Umbrales</h5>
+          <button type="button" class="btn-close" onclick="closeConfigModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Humo — Umbral</label>
+            <input type="number" id="cfgHumoUmbral" class="form-control" min="1" step="1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Humo — Crítico</label>
+            <input type="number" id="cfgHumoCritico" class="form-control" min="1" step="1">
+          </div>
+          <small class="text-muted">El valor crítico debe ser mayor o igual al umbral.</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeConfigModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveConfig()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script>
+    let chartInstance = null;
+
+    // Función para obtener el color según el nivel de alerta
+    function getAlertColor(nivel, valor, tipo) {
+      if (tipo === 'temperatura') {
+        if (valor > 35) return 'text-danger';
+        if (valor > 30) return 'text-warning';
+        return 'text-success';
+      }
+      if (tipo === 'humedad') {
+        if (valor < 30 || valor > 80) return 'text-danger';
+        if (valor < 40 || valor > 70) return 'text-warning';
+        return 'text-success';
+      }
+      if (nivel === 'Alto' || nivel === 'Crítico') return 'text-danger';
+      if (nivel === 'Medio' || nivel === 'Advertencia') return 'text-warning';
+      return 'text-success';
+    }
+
+    function getAlertIcon(nivel) {
+      if (nivel === 'Alto' || nivel === 'Crítico') return '🔴';
+      if (nivel === 'Medio' || nivel === 'Advertencia') return '🟡';
+      return '🟢';
+    }
+
+    async function fetchEstadoActual(){
+      try{
+        const res = await fetch('/api/estado/actual');
+        const data = await res.json();
+        
+        // Actualizar datos de ambiente
+        if(data.ambiente) {
+          const amb = data.ambiente;
+          const temp = amb.temperatura;
+          const hum = amb.humedad;
+          
+          document.getElementById('temp').innerHTML = temp ? 
+            `<span class="${getAlertColor('', temp, 'temperatura')}">${temp}°C</span>` : '-';
+          document.getElementById('hum').innerHTML = hum ? 
+            `<span class="${getAlertColor('', hum, 'humedad')}">${hum}%</span>` : '-';
+          
+          // Estado de bomba con color
+          const bombaElement = document.querySelector('.card:nth-child(1) .alerta');
+          if (bombaElement) {
+            bombaElement.textContent = amb.estado_bomba || 'Desconocido';
+            bombaElement.className = `alerta ${amb.estado_bomba === 'Encendida' ? 'text-warning' : 'text-success'}`;
+          }
+        }
+
+        // Actualizar datos de seguridad
+        if(data.seguridad) {
+          const seg = data.seguridad;
+          document.getElementById('alerta').innerHTML = 
+            `${getAlertIcon(seg.nivel_alerta)} ${seg.nivel_alerta || 'Normal'}`;
+          
+          // Actualizar según tipo de evento
+          if (seg.tipo_evento === 'Movimiento') {
+            document.getElementById('mov').innerHTML = 
+              `<span class="${getAlertColor(seg.nivel_alerta)}">${seg.descripcion || 'Detectado'}</span>`;
+          } else if (seg.tipo_evento === 'Humo') {
+            // Mostrar nivel de humo
+            document.getElementById('humo').innerHTML =
+              `<span class="${getAlertColor(seg.nivel_alerta)}">${seg.nivel_alerta || 'Detectado'}</span>`;
+            // Mostrar banner de alerta si nivel es Medio o Crítico
+            const alertaHumo = document.getElementById('humoAlert');
+            const alertaTexto = document.getElementById('humoAlertText');
+            if (seg.nivel_alerta === 'Crítico' || seg.nivel_alerta === 'Alto' || seg.nivel_alerta === 'Medio') {
+              alertaHumo.classList.remove('d-none', 'alert-warning', 'alert-danger');
+              // Color según nivel
+              alertaHumo.classList.add(seg.nivel_alerta === 'Crítico' || seg.nivel_alerta === 'Alto' ? 'alert-danger' : 'alert-warning');
+              const ts = seg.fecha ? new Date(seg.fecha).toLocaleString() : '';
+              alertaTexto.textContent = `${seg.descripcion || 'Se ha detectado humo en el invernadero'}${ts ? ' — ' + ts : ''}`;
+            } else {
+              alertaHumo.classList.add('d-none');
+            }
+          }
+        } else {
+          document.getElementById('mov').innerHTML = '<span class="text-success">No detectado</span>';
+          document.getElementById('humo').innerHTML = '<span class="text-success">Normal</span>';
+          document.getElementById('alerta').innerHTML = '🟢 Normal';
+          const alertaHumo = document.getElementById('humoAlert');
+          alertaHumo.classList.add('d-none');
+        }
+
+        // Actualizar datos de acceso
+        if(data.acceso) {
+          const acc = data.acceso;
+          document.getElementById('horaAcceso').textContent = 
+            new Date(acc.fecha).toLocaleTimeString() || '-';
+          document.getElementById('usuario').textContent = acc.persona || 'N/A';
+          
+          // Estado de acceso con color
+          const accesoElement = document.querySelector('.card:nth-child(3) p:last-child span');
+          if (accesoElement) {
+            accesoElement.innerHTML = acc.acceso_autorizado ? 
+              '<span class="text-success">Autorizado ✅</span>' : 
+              '<span class="text-danger">No Autorizado ❌</span>';
+          }
+        }
+
+        // Actualizar tabla de eventos
+        if(data.eventos) {
+          const tabla = document.getElementById('tablaEventos');
+          tabla.innerHTML = '';
+          data.eventos.forEach(evento => {
+            const tr = document.createElement('tr');
+            const fecha = document.createElement('td'); 
+            fecha.textContent = new Date(evento.fecha).toLocaleString();
+            const tipo = document.createElement('td'); 
+            tipo.textContent = evento.tipo;
+            const desc = document.createElement('td'); 
+            desc.textContent = evento.descripcion;
+            const nivel = document.createElement('td'); 
+            nivel.innerHTML = `<span class="${getAlertColor(evento.nivel)}">${evento.nivel}</span>`;
+            tr.appendChild(fecha); tr.appendChild(tipo); tr.appendChild(desc); tr.appendChild(nivel);
+            tabla.appendChild(tr);
+          });
+        }
+
+        // Actualizar gráfico con datos reales
+        await updateChart();
+        
+      }catch(e){
+        console.error('Error al obtener estado actual:', e);
+      }
+    }
+
+    async function updateChart() {
+      try {
+        const res = await fetch('/api/ambiente?limit=20');
+        const data = await res.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+          // Ordenar por fecha ascendente para el gráfico
+          data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+          
+          const labels = data.map(d => new Date(d.fecha).toLocaleTimeString());
+          const tempData = data.map(d => d.temperatura || 0);
+          const humData = data.map(d => d.humedad || 0);
+          
+          if (chartInstance) {
+            chartInstance.destroy();
+          }
+          
+          const ctx = document.getElementById('graficoAmbiente').getContext('2d');
+          chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                { 
+                  label: 'Temperatura (°C)', 
+                  data: tempData, 
+                  borderColor: 'rgb(255, 99, 132)',
+                  backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                  tension: 0.1
+                },
+                { 
+                  label: 'Humedad (%)', 
+                  data: humData, 
+                  borderColor: 'rgb(54, 162, 235)',
+                  backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                  tension: 0.1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              }
+            }
+          });
+        }
+      } catch(e) {
+        console.error('Error actualizando gráfico:', e);
+      }
+    }
+
+    let autoUpdateInterval = null;
+    let autoUpdateEnabled = true;
+
+    async function aplicarFiltros() {
+      const desde = document.getElementById('fechaDesde').value;
+      const hasta = document.getElementById('fechaHasta').value;
+      const tipoEvento = document.getElementById('tipoEvento').value;
+      const nivelAlerta = document.getElementById('nivelAlerta').value;
+
+      try {
+        // Construir URLs con filtros
+        let ambienteUrl = '/api/ambiente?';
+        let seguridadUrl = '/api/seguridad?';
+        let accesosUrl = '/api/accesos?';
+        
+        if (desde) {
+          ambienteUrl += `desde=${desde}&`;
+          seguridadUrl += `desde=${desde}&`;
+          accesosUrl += `desde=${desde}&`;
+        }
+        if (hasta) {
+          ambienteUrl += `hasta=${hasta}&`;
+          seguridadUrl += `hasta=${hasta}&`;
+          accesosUrl += `hasta=${hasta}&`;
+        }
+
+        // Obtener datos filtrados
+        const [ambienteRes, seguridadRes, accesosRes] = await Promise.all([
+          fetch(ambienteUrl),
+          fetch(seguridadUrl),
+          fetch(accesosUrl)
+        ]);
+
+        const ambienteData = await ambienteRes.json();
+        const seguridadData = await seguridadRes.json();
+        const accesosData = await accesosRes.json();
+
+        // Combinar eventos y aplicar filtros adicionales
+        let eventos = [];
+        
+        if (Array.isArray(ambienteData)) {
+          eventos = eventos.concat(ambienteData.map(r => ({
+            fecha: r.fecha,
+            tipo: 'Ambiente',
+            descripcion: `T:${r.temperatura}°C H:${r.humedad}%`,
+            nivel: r.alerta || 'Normal'
+          })));
+        }
+
+        if (Array.isArray(seguridadData)) {
+          eventos = eventos.concat(seguridadData.map(r => ({
+            fecha: r.fecha,
+            tipo: r.tipo_evento,
+            descripcion: r.descripcion,
+            nivel: r.nivel_alerta
+          })));
+        }
+
+        if (Array.isArray(accesosData)) {
+          eventos = eventos.concat(accesosData.map(r => ({
+            fecha: r.fecha,
+            tipo: 'Acceso',
+            descripcion: `${r.persona} - ${r.acceso_autorizado ? 'Autorizado' : 'No Autorizado'}`,
+            nivel: r.acceso_autorizado ? 'Normal' : 'Alto'
+          })));
+        }
+
+        // Filtrar por tipo y nivel
+        if (tipoEvento) {
+          eventos = eventos.filter(e => e.tipo === tipoEvento);
+        }
+        if (nivelAlerta) {
+          eventos = eventos.filter(e => e.nivel === nivelAlerta);
+        }
+
+        // Ordenar por fecha descendente
+        eventos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        // Actualizar tabla
+        const tabla = document.getElementById('tablaEventos');
+        tabla.innerHTML = '';
+        eventos.slice(0, 50).forEach(evento => {
+          const tr = document.createElement('tr');
+          const fecha = document.createElement('td'); 
+          fecha.textContent = new Date(evento.fecha).toLocaleString();
+          const tipo = document.createElement('td'); 
+          tipo.textContent = evento.tipo;
+          const desc = document.createElement('td'); 
+          desc.textContent = evento.descripcion;
+          const nivel = document.createElement('td'); 
+          nivel.innerHTML = `<span class="${getAlertColor(evento.nivel)}">${evento.nivel}</span>`;
+          tr.appendChild(fecha); tr.appendChild(tipo); tr.appendChild(desc); tr.appendChild(nivel);
+          tabla.appendChild(tr);
+        });
+
+      } catch(e) {
+        console.error('Error aplicando filtros:', e);
+      }
+    }
+
+    function toggleAutoUpdate() {
+      const btn = document.getElementById('btnAutoUpdate');
+      if (autoUpdateEnabled) {
+        if (autoUpdateInterval) {
+          clearInterval(autoUpdateInterval);
+          autoUpdateInterval = null;
+        }
+        btn.textContent = '▶️ Reanudar Auto-actualización';
+        btn.className = 'btn btn-warning';
+        autoUpdateEnabled = false;
+      } else {
+        autoUpdateInterval = setInterval(fetchEstadoActual, 10000);
+        btn.textContent = '⏸️ Pausar Auto-actualización';
+        btn.className = 'btn btn-secondary';
+        autoUpdateEnabled = true;
+      }
+    }
+
+    // Modal simple (sin lib extra)
+    function openConfigModal() {
+      const modal = document.getElementById('configModal');
+      modal.style.display = 'block';
+      modal.classList.add('show');
+    }
+    function closeConfigModal() {
+      const modal = document.getElementById('configModal');
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+    }
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config/umbrales');
+        const cfg = await res.json();
+        document.getElementById('cfgHumoUmbral').value = cfg.humo?.umbral ?? 300;
+        document.getElementById('cfgHumoCritico').value = cfg.humo?.critico ?? 500;
+      } catch(e) { console.error('Error cargando config:', e); }
+    }
+    async function saveConfig() {
+      const umbral = parseInt(document.getElementById('cfgHumoUmbral').value || '300', 10);
+      const critico = parseInt(document.getElementById('cfgHumoCritico').value || '500', 10);
+      if (!(umbral > 0 && critico >= umbral)) {
+        alert('Valores inválidos: crítico debe ser ≥ umbral y ambos > 0');
+        return;
+      }
+      try {
+        await fetch('/api/config/umbrales', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ humo: { umbral, critico } })
+        });
+        closeConfigModal();
+      } catch(e) { console.error('Error guardando config:', e); }
+    }
+
+
+
+    // Event listeners
+    document.getElementById('btnRefresh').addEventListener('click', fetchEstadoActual);
+    document.getElementById('btnFiltrar').addEventListener('click', aplicarFiltros);
+  document.getElementById('btnAutoUpdate').addEventListener('click', toggleAutoUpdate);
+  document.getElementById('btnConfig').addEventListener('click', async () => { await loadConfig(); openConfigModal(); });
+
+    // Actualización automática cada 10 segundos
+    autoUpdateInterval = setInterval(fetchEstadoActual, 10000);
+
+    // Establecer fechas por defecto (último día)
+    const ahora = new Date();
+    const ayer = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+    document.getElementById('fechaDesde').value = ayer.toISOString().slice(0, 16);
+    document.getElementById('fechaHasta').value = ahora.toISOString().slice(0, 16);
+
+    // Cargar datos iniciales
+    fetchEstadoActual();
+  </script>
+</body>
+</html>

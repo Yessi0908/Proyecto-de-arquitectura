@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 Estadísticas - Invernadero</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #e8f5e8; font-family: 'Poppins', sans-serif; }
+    .card { border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .stat-card { text-align: center; padding: 20px; }
+    .stat-number { font-size: 2.5rem; font-weight: bold; color: #2d5016; }
+    .stat-label { color: #666; font-size: 1rem; }
+    .alert-badge { position: absolute; top: 10px; right: 10px; }
+  </style>
+</head>
+<body class="p-4">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>📊 Estadísticas del Invernadero</h1>
+      <div>
+        <a href="/" class="btn btn-secondary">🏠 Dashboard</a>
+        <button id="btnRefresh" class="btn btn-success">🔄 Actualizar</button>
+      </div>
+    </div>
+
+    <!-- Alertas del Sistema -->
+    <div id="alertasContainer" class="mb-4"></div>
+
+    <!-- Resumen General -->
+    <div class="row g-4 mb-4">
+      <div class="col-md-3">
+        <div class="card stat-card bg-light">
+          <div class="stat-number text-info" id="totalRegistros">0</div>
+          <div class="stat-label">Registros Ambientales</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card stat-card bg-light">
+          <div class="stat-number text-warning" id="totalEventos">0</div>
+          <div class="stat-label">Eventos de Seguridad</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card stat-card bg-light">
+          <div class="stat-number text-success" id="totalAccesos">0</div>
+          <div class="stat-label">Accesos Registrados</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card stat-card bg-light">
+          <div class="stat-number text-primary" id="activacionesBomba">0</div>
+          <div class="stat-label">Activaciones de Bomba</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estadísticas Detalladas -->
+    <div class="row g-4">
+      <!-- Ambiente -->
+      <div class="col-md-4">
+        <div class="card p-4">
+          <h5 class="card-title">🌡️ Condiciones Ambientales</h5>
+          <hr>
+          <div class="row text-center">
+            <div class="col-6">
+              <h6>Temperatura (°C)</h6>
+              <p><strong>Promedio:</strong> <span id="tempPromedio">-</span></p>
+              <p><strong>Mínima:</strong> <span id="tempMinima" class="text-info">-</span></p>
+              <p><strong>Máxima:</strong> <span id="tempMaxima" class="text-danger">-</span></p>
+            </div>
+            <div class="col-6">
+              <h6>Humedad (%)</h6>
+              <p><strong>Promedio:</strong> <span id="humPromedio">-</span></p>
+              <p><strong>Mínima:</strong> <span id="humMinima" class="text-warning">-</span></p>
+              <p><strong>Máxima:</strong> <span id="humMaxima" class="text-primary">-</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seguridad -->
+      <div class="col-md-4">
+        <div class="card p-4">
+          <h5 class="card-title">🚨 Eventos de Seguridad</h5>
+          <hr>
+          <p>📱 <strong>Movimiento:</strong> <span id="eventosMovimiento">0</span> eventos</p>
+          <p>💨 <strong>Humo:</strong> <span id="eventosHumo">0</span> eventos</p>
+          <p>🔴 <strong>Críticas:</strong> <span id="alertasCriticas" class="text-danger">0</span></p>
+          <p>🟡 <strong>Altas:</strong> <span id="alertasAltas" class="text-warning">0</span></p>
+          <div class="progress mt-3">
+            <div id="seguridadBar" class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+          </div>
+          <small class="text-muted">Nivel de seguridad general</small>
+        </div>
+      </div>
+
+      <!-- Accesos -->
+      <div class="col-md-4">
+        <div class="card p-4">
+          <h5 class="card-title">🪪 Control de Acceso</h5>
+          <hr>
+          <p>✅ <strong>Autorizados:</strong> <span id="accesosAutorizados" class="text-success">0</span></p>
+          <p>❌ <strong>Denegados:</strong> <span id="accesosDenegados" class="text-danger">0</span></p>
+          <div class="progress mt-3">
+            <div id="accesoBar" class="progress-bar bg-success" role="progressbar"></div>
+          </div>
+          <small class="text-muted">Tasa de accesos autorizados</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row g-4 mt-2">
+      <div class="col-md-6">
+        <div class="card p-4">
+          <h5>📈 Tendencia de Temperatura</h5>
+          <canvas id="chartTemperatura" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4">
+          <h5>💧 Tendencia de Humedad</h5>
+          <canvas id="chartHumedad" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+      <div class="col-md-6">
+        <div class="card p-4">
+          <h5>🚨 Distribución de Alertas</h5>
+          <canvas id="chartAlertas" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4">
+          <h5>📊 Resumen Semanal</h5>
+          <div class="mt-3">
+            <p><strong>Período:</strong> <span id="periodoStats">Últimos 7 días</span></p>
+            <p><strong>Eficiencia del sistema:</strong> <span id="eficiencia" class="text-success">98.5%</span></p>
+            <p><strong>Tiempo de actividad:</strong> <span id="uptime" class="text-info">99.2%</span></p>
+            <p><strong>Última actualización:</strong> <span id="ultimaActualizacion">-</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuración de Umbrales -->
+    <div class="card mt-4 p-4">
+      <h5>⚙️ Configuración de Umbrales</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <h6>🌡️ Temperatura (°C)</h6>
+          <div class="row">
+            <div class="col-4">
+              <label class="form-label small">Mín</label>
+              <input type="number" class="form-control form-control-sm" id="tempMin" value="18" step="0.1">
+            </div>
+            <div class="col-4">
+              <label class="form-label small">Máx</label>
+              <input type="number" class="form-control form-control-sm" id="tempMax" value="28" step="0.1">
+            </div>
+            <div class="col-4">
+              <label class="form-label small">Crítica</label>
+              <input type="number" class="form-control form-control-sm" id="tempCritica" value="35" step="0.1">
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <h6>💧 Humedad (%)</h6>
+          <div class="row">
+            <div class="col-6">
+              <label class="form-label small">Mín</label>
+              <input type="number" class="form-control form-control-sm" id="humMin" value="40" step="1">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Máx</label>
+              <input type="number" class="form-control form-control-sm" id="humMax" value="70" step="1">
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <h6>💨 Humo</h6>
+          <div class="row">
+            <div class="col-6">
+              <label class="form-label small">Umbral</label>
+              <input type="number" class="form-control form-control-sm" id="humoUmbral" value="300" step="10">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Crítico</label>
+              <input type="number" class="form-control form-control-sm" id="humoCritico" value="500" step="10">
+            </div>
+          </div>
+        </div>
+      </div>
+      <button id="btnGuardarUmbrales" class="btn btn-primary mt-3">💾 Guardar Configuración</button>
+    </div>
+
+  </div>
+
+  <script>
+    let chartsInitialized = false;
+    let charts = {};
+
+    async function cargarEstadisticas() {
+      try {
+        // Cargar estadísticas generales
+        const statsRes = await fetch('/api/estadisticas');
+        const stats = await statsRes.json();
+        
+        // Cargar alertas del sistema
+        const alertasRes = await fetch('/api/alertas/sistema');
+        const alertas = await alertasRes.json();
+        
+        // Actualizar números generales
+        document.getElementById('totalRegistros').textContent = stats.ambiente?.total_registros || 0;
+        document.getElementById('totalEventos').textContent = stats.seguridad?.total_eventos || 0;
+        document.getElementById('totalAccesos').textContent = stats.acceso?.total_accesos || 0;
+        document.getElementById('activacionesBomba').textContent = stats.ambiente?.activaciones_bomba || 0;
+        
+        // Actualizar estadísticas de ambiente
+        if (stats.ambiente) {
+          document.getElementById('tempPromedio').textContent = 
+            stats.ambiente.temp_promedio ? parseFloat(stats.ambiente.temp_promedio).toFixed(1) + '°C' : '-';
+          document.getElementById('tempMinima').textContent = 
+            stats.ambiente.temp_minima ? parseFloat(stats.ambiente.temp_minima).toFixed(1) + '°C' : '-';
+          document.getElementById('tempMaxima').textContent = 
+            stats.ambiente.temp_maxima ? parseFloat(stats.ambiente.temp_maxima).toFixed(1) + '°C' : '-';
+          document.getElementById('humPromedio').textContent = 
+            stats.ambiente.hum_promedio ? parseFloat(stats.ambiente.hum_promedio).toFixed(1) + '%' : '-';
+          document.getElementById('humMinima').textContent = 
+            stats.ambiente.hum_minima ? parseFloat(stats.ambiente.hum_minima).toFixed(1) + '%' : '-';
+          document.getElementById('humMaxima').textContent = 
+            stats.ambiente.hum_maxima ? parseFloat(stats.ambiente.hum_maxima).toFixed(1) + '%' : '-';
+        }
+        
+        // Actualizar estadísticas de seguridad
+        if (stats.seguridad) {
+          document.getElementById('eventosMovimiento').textContent = stats.seguridad.eventos_movimiento || 0;
+          document.getElementById('eventosHumo').textContent = stats.seguridad.eventos_humo || 0;
+          document.getElementById('alertasCriticas').textContent = stats.seguridad.alertas_criticas || 0;
+          document.getElementById('alertasAltas').textContent = stats.seguridad.alertas_altas || 0;
+          
+          // Calcular nivel de seguridad
+          const totalEventos = stats.seguridad.total_eventos || 1;
+          const eventosCriticos = (stats.seguridad.alertas_criticas || 0) + (stats.seguridad.alertas_altas || 0);
+          const nivelSeguridad = Math.max(0, 100 - (eventosCriticos / totalEventos * 100));
+          
+          const seguridadBar = document.getElementById('seguridadBar');
+          seguridadBar.style.width = nivelSeguridad + '%';
+          seguridadBar.className = `progress-bar ${nivelSeguridad > 80 ? 'bg-success' : 
+                                                   nivelSeguridad > 60 ? 'bg-warning' : 'bg-danger'}`;
+        }
+        
+        // Actualizar estadísticas de acceso
+        if (stats.acceso) {
+          document.getElementById('accesosAutorizados').textContent = stats.acceso.accesos_autorizados || 0;
+          document.getElementById('accesosDenegados').textContent = stats.acceso.accesos_denegados || 0;
+          
+          const totalAccesos = stats.acceso.total_accesos || 1;
+          const tasaAutorizacion = (stats.acceso.accesos_autorizados || 0) / totalAccesos * 100;
+          
+          const accesoBar = document.getElementById('accesoBar');
+          accesoBar.style.width = tasaAutorizacion + '%';
+          accesoBar.className = `progress-bar ${tasaAutorizacion > 90 ? 'bg-success' : 
+                                               tasaAutorizacion > 70 ? 'bg-warning' : 'bg-danger'}`;
+        }
+        
+        // Mostrar alertas
+        mostrarAlertas(alertas);
+        
+        // Actualizar timestamp
+        document.getElementById('ultimaActualizacion').textContent = new Date().toLocaleString();
+        
+        // Crear gráficos si aún no existen
+        if (!chartsInitialized) {
+          crearGraficos();
+          chartsInitialized = true;
+        }
+        
+      } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+      }
+    }
+
+    function mostrarAlertas(alertasData) {
+      const container = document.getElementById('alertasContainer');
+      container.innerHTML = '';
+      
+      if (alertasData.alertas && alertasData.alertas.length > 0) {
+        const alertCard = document.createElement('div');
+        alertCard.className = 'card border-warning';
+        alertCard.innerHTML = `
+          <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0">⚠️ Alertas Activas del Sistema (${alertasData.total})</h6>
+          </div>
+          <div class="card-body">
+            ${alertasData.alertas.map(alerta => `
+              <div class="alert alert-${alerta.nivel === 'Crítico' ? 'danger' : 
+                                       alerta.nivel === 'Alto' ? 'warning' : 'info'} mb-2">
+                <strong>${alerta.tipo}:</strong> ${alerta.mensaje}
+                <small class="d-block text-muted">
+                  ${alerta.fecha ? new Date(alerta.fecha).toLocaleString() : 'Fecha no disponible'}
+                </small>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        container.appendChild(alertCard);
+      }
+    }
+
+    function crearGraficos() {
+      // Gráfico de temperatura (simulado)
+      const ctxTemp = document.getElementById('chartTemperatura').getContext('2d');
+      charts.temperatura = new Chart(ctxTemp, {
+        type: 'line',
+        data: {
+          labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+          datasets: [{
+            label: 'Temperatura Promedio',
+            data: [22, 24, 26, 25, 23, 21, 22],
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: false,
+              min: 15,
+              max: 35
+            }
+          }
+        }
+      });
+
+      // Gráfico de humedad (simulado)
+      const ctxHum = document.getElementById('chartHumedad').getContext('2d');
+      charts.humedad = new Chart(ctxHum, {
+        type: 'line',
+        data: {
+          labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+          datasets: [{
+            label: 'Humedad Promedio',
+            data: [65, 62, 58, 61, 67, 70, 68],
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: false,
+              min: 20,
+              max: 90
+            }
+          }
+        }
+      });
+
+      // Gráfico de alertas (dona)
+      const ctxAlertas = document.getElementById('chartAlertas').getContext('2d');
+      charts.alertas = new Chart(ctxAlertas, {
+        type: 'doughnut',
+        data: {
+          labels: ['Normal', 'Advertencia', 'Crítico'],
+          datasets: [{
+            data: [85, 12, 3],
+            backgroundColor: [
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(255, 206, 86, 0.8)',
+              'rgba(255, 99, 132, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true
+        }
+      });
+    }
+
+    async function guardarUmbrales() {
+      const umbrales = {
+        temperatura: {
+          min: parseFloat(document.getElementById('tempMin').value),
+          max: parseFloat(document.getElementById('tempMax').value),
+          critica: parseFloat(document.getElementById('tempCritica').value)
+        },
+        humedad: {
+          min: parseFloat(document.getElementById('humMin').value),
+          max: parseFloat(document.getElementById('humMax').value)
+        },
+        humo: {
+          umbral: parseInt(document.getElementById('humoUmbral').value),
+          critico: parseInt(document.getElementById('humoCritico').value)
+        }
+      };
+
+      try {
+        const response = await fetch('/api/config/umbrales', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(umbrales)
+        });
+        
+        if (response.ok) {
+          alert('✅ Umbrales guardados correctamente');
+        } else {
+          alert('❌ Error guardando umbrales');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Error de conexión');
+      }
+    }
+
+    // Event listeners
+    document.getElementById('btnRefresh').addEventListener('click', cargarEstadisticas);
+    document.getElementById('btnGuardarUmbrales').addEventListener('click', guardarUmbrales);
+
+    // Cargar datos inicial
+    cargarEstadisticas();
+    
+    // Actualización automática cada 30 segundos
+    setInterval(cargarEstadisticas, 30000);
+  </script>
+</body>
+</html>

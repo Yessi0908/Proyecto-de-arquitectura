@@ -1,0 +1,71 @@
+/**
+ * 🔧 CONFIGURACIÓN PARA ARDUINO ESP32 - DATOS REALES
+ * ===================================================
+ * Archivo de configuración para conectar el Arduino ESP32 al servidor Flask
+ * 
+ * IP del Servidor: 192.168.1.7
+ * Puerto: 5000
+ * 
+ * INSTRUCCIONES:
+ * 1. Copia estas líneas al archivo invernadero_esp32.ino
+ * 2. Cambia TU_WIFI_SSID por el nombre de tu red WiFi
+ * 3. Cambia TU_WIFI_PASSWORD por la contraseña de tu WiFi
+ * 4. La IP del servidor ya está configurada correctamente
+ */
+
+// ===========================================
+// CONFIGURACIÓN DE RED WIFI - MODIFICAR ESTAS LÍNEAS
+// ===========================================
+const char* ssid = "TU_WIFI_SSID";           // ⚠️  CAMBIAR por tu red WiFi
+const char* password = "TU_WIFI_PASSWORD";    // ⚠️  CAMBIAR por tu contraseña
+const char* serverURL = "http://192.168.1.7:5000"; // ✅ IP configurada automáticamente
+
+/**
+ * ENDPOINTS DISPONIBLES EN EL SERVIDOR:
+ * 
+ * POST /api/sensores/ambiente
+ * - Recibe datos de temperatura, humedad, estado de bomba y alertas
+ * - Formato JSON: {"temperatura": 25.6, "humedad": 65.2, "estado_bomba": "Encendida", "alerta": "Normal"}
+ * 
+ * POST /api/sensores/seguridad  
+ * - Recibe alertas de seguridad (humo, movimiento, etc.)
+ * - Formato JSON: {"tipo_evento": "Humo", "descripcion": "Nivel detectado", "nivel_alerta": "Alto"}
+ * 
+ * GET /api/health
+ * - Verificar que el servidor esté funcionando
+ * 
+ * DASHBOARD WEB: http://192.168.1.7:5000
+ * - Interfaz web para visualizar los datos en tiempo real
+ */
+
+/**
+ * PASOS PARA CONFIGURAR EL ARDUINO:
+ * 
+ * 1. Abrir el archivo: arduino/invernadero_esp32.ino
+ * 
+ * 2. Buscar estas líneas (alrededor de la línea 31-33):
+ *    const char* ssid = "TU_WIFI_SSID";
+ *    const char* password = "TU_WIFI_PASSWORD";  
+ *    const char* serverURL = "http://192.168.1.100:5000";
+ * 
+ * 3. Reemplazar con:
+ *    const char* ssid = "TU_RED_WIFI_REAL";
+ *    const char* password = "TU_PASSWORD_REAL";
+ *    const char* serverURL = "http://192.168.1.7:5000";
+ * 
+ * 4. Compilar y subir al Arduino ESP32
+ * 
+ * 5. Abrir monitor serie para ver la conexión WiFi
+ * 
+ * 6. Verificar en el dashboard web que aparezcan los datos
+ */
+
+/**
+ * VALIDACIÓN DE FUNCIONAMIENTO:
+ * 
+ * ✅ El Arduino debe conectarse a WiFi
+ * ✅ Debe aparecer en el monitor serie: "✅ Sistema iniciado correctamente"
+ * ✅ Cada 30 segundos debe mostrar: "📤 Datos enviados correctamente"  
+ * ✅ En el dashboard web debe cambiar de "⏳ Esperando datos..." a "✅ Arduino Conectado"
+ * ✅ Los valores de temperatura y humedad deben actualizarse automáticamente
+ */

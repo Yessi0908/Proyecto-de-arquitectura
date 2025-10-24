@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌿 Invernadero - Test de Conexión</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { background-color: #d7f0d1; font-family: Arial, sans-serif; }
+    .debug-info { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin: 10px 0; }
+    .error { color: #dc3545; }
+    .success { color: #198754; }
+    .loading { color: #0d6efd; }
+  </style>
+</head>
+<body class="p-4">
+  <div class="container">
+    <h1 class="text-center mb-4">🌿 Test de Conexión - Invernadero</h1>
+    
+    <div class="debug-info">
+      <h5>🔧 Información de Debug</h5>
+      <div id="debugInfo">Iniciando diagnóstico...</div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="card p-3">
+          <h5><span style="font-size: 2rem;">🌡️</span> Estado del Ambiente</h5>
+          <div id="ambienteStatus">Cargando...</div>
+          <hr>
+          <p>Temperatura: <strong id="temperatura">--°C</strong></p>
+          <p>Humedad: <strong id="humedad">--%</strong></p>
+          <p>Estado bomba: <strong id="estadoBomba">--</strong></p>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card p-3">
+          <h5><span style="font-size: 2rem;">📊</span> Datos de la Base</h5>
+          <div id="baseDatosStatus">Verificando...</div>
+          <hr>
+          <p>Registros encontrados: <strong id="totalRegistros">0</strong></p>
+          <p>Último registro: <strong id="ultimoRegistro">--</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>🧪 Pruebas de API</h5>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100" onclick="testHealth()">Test Health</button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-info w-100" onclick="testAmbiente()">Test Ambiente</button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-success w-100" onclick="testEstadoActual()">Test Estado</button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-warning w-100" onclick="simularDatos()">Simular Datos</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4 p-4">
+      <h5>📋 Log de Pruebas</h5>
+      <div id="testLog" style="font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 5px; height: 300px; overflow-y: scroll;">
+        Iniciando pruebas...\n
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let logElement = document.getElementById('testLog');
+    
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+      logElement.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    function updateDebugInfo(info) {
+      document.getElementById('debugInfo').innerHTML = info;
+    }
+
+    async function testHealth() {
+      log('🔧 Probando endpoint /api/health...');
+      try {
+        const response = await fetch('/api/health');
+        log(`Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`✅ Health OK: ${data.message}`, 'success');
+          updateDebugInfo('✅ Servidor respondiendo correctamente');
+          return true;
+        } else {
+          log(`❌ Health falló: ${response.statusText}`, 'error');
+          return false;
+        }
+      } catch (error) {
+        log(`❌ Error en health: ${error.message}`, 'error');
+        updateDebugInfo('❌ Error de conexión con el servidor');
+        return false;
+      }
+    }
+
+    async function testAmbiente() {
+      log('🌡️ Probando endpoint /api/ambiente...');
+      try {
+        const response = await fetch('/api/ambiente?limit=5');
+        log(`Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`✅ Ambiente OK: ${data.length} registros`, 'success');
+          document.getElementById('totalRegistros').textContent = data.length;
+          
+          if (data.length > 0) {
+            const ultimo = data[0];
+            document.getElementById('ultimoRegistro').textContent = ultimo.fecha;
+            log(`📊 Último registro: ${ultimo.fecha} - ${ultimo.temperatura}°C, ${ultimo.humedad}%`, 'success');
+          }
+          return data;
+        } else {
+          log(`❌ Ambiente falló: ${response.statusText}`, 'error');
+          return null;
+        }
+      } catch (error) {
+        log(`❌ Error en ambiente: ${error.message}`, 'error');
+        return null;
+      }
+    }
+
+    async function testEstadoActual() {
+      log('📊 Probando endpoint /api/estado/actual...');
+      try {
+        const response = await fetch('/api/estado/actual');
+        log(`Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`✅ Estado actual OK`, 'success');
+          
+          if (data.ambiente) {
+            const amb = data.ambiente;
+            document.getElementById('temperatura').textContent = `${amb.temperatura}°C`;
+            document.getElementById('humedad').textContent = `${amb.humedad}%`;
+            document.getElementById('estadoBomba').textContent = amb.estado_bomba || 'Desconocido';
+            document.getElementById('ambienteStatus').innerHTML = '<span class="success">✅ Datos cargados</span>';
+            log(`🌡️ Temperatura: ${amb.temperatura}°C, Humedad: ${amb.humedad}%`, 'success');
+          } else {
+            log(`⚠️ Sin datos de ambiente en respuesta`, 'error');
+            document.getElementById('ambienteStatus').innerHTML = '<span class="error">❌ Sin datos</span>';
+          }
+          
+          return data;
+        } else {
+          log(`❌ Estado actual falló: ${response.statusText}`, 'error');
+          return null;
+        }
+      } catch (error) {
+        log(`❌ Error en estado actual: ${error.message}`, 'error');
+        document.getElementById('ambienteStatus').innerHTML = '<span class="error">❌ Error de conexión</span>';
+        return null;
+      }
+    }
+
+    async function simularDatos() {
+      log('🎲 Simulando nuevos datos...');
+      try {
+        const response = await fetch('/api/simular_datos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        });
+        
+        log(`Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`✅ Datos simulados: ${data.message}`, 'success');
+          if (data.nuevo_registro) {
+            const reg = data.nuevo_registro;
+            log(`📊 Nuevo: ${reg.temperatura}°C, ${reg.humedad}% - ${reg.estado_bomba}`, 'success');
+          }
+          // Refrescar datos
+          setTimeout(() => testEstadoActual(), 1000);
+          return true;
+        } else {
+          log(`❌ Simulación falló: ${response.statusText}`, 'error');
+          return false;
+        }
+      } catch (error) {
+        log(`❌ Error simulando: ${error.message}`, 'error');
+        return false;
+      }
+    }
+
+    // Ejecutar pruebas automáticas al cargar
+    window.onload = async function() {
+      log('🚀 Iniciando diagnóstico automático...', 'info');
+      
+      // Test 1: Health
+      const healthOk = await testHealth();
+      if (!healthOk) {
+        log('⚠️ Servidor no responde - verifica que esté ejecutándose', 'error');
+        updateDebugInfo('❌ Servidor no disponible');
+        return;
+      }
+      
+      // Test 2: Datos de ambiente
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const ambienteData = await testAmbiente();
+      
+      // Test 3: Estado actual
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await testEstadoActual();
+      
+      if (ambienteData && ambienteData.length > 0) {
+        log('🎉 ¡Diagnóstico completo! Todo funciona correctamente', 'success');
+        updateDebugInfo('✅ Sistema funcionando - datos disponibles');
+      } else {
+        log('⚠️ Servidor funciona pero no hay datos', 'error');
+        updateDebugInfo('⚠️ Sin datos en la base de datos');
+      }
+    };
+
+    // Auto-refresh cada 30 segundos
+    setInterval(async () => {
+      if (document.getElementById('debugInfo').textContent.includes('✅')) {
+        await testEstadoActual();
+      }
+    }, 30000);
+  </script>
+</body>
+</html>
